@@ -26,6 +26,7 @@
 
 from .jsonclient import JSONClient
 from .atlasclient import AtlasClient
+from .gem5apiclient import Gem5APIClient
 from _m5 import core
 from typing import Optional, Dict, List, Tuple
 import itertools
@@ -52,7 +53,14 @@ class ClientWrapper:
             client_source = config["sources"][client]
             try:
                 if client_source["isMongo"]:
-                    clients[client] = AtlasClient(client_source)
+                    # Sources carrying an "apiKey" are MongoDB Atlas Data API
+                    # sources. That API has been retired; the database is now
+                    # served by the gem5 Resources API, whose sources declare
+                    # no key.
+                    if "apiKey" in client_source:
+                        clients[client] = AtlasClient(client_source)
+                    else:
+                        clients[client] = Gem5APIClient(client_source)
                 else:
                     clients[client] = JSONClient(client_source["url"])
             except Exception as e:

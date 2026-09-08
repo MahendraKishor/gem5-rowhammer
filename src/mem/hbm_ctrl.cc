@@ -51,7 +51,7 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
                          name()),
     respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
                          respondEventPC1, retryRdReqPC1); }, name()),
-    pc1Int(p.dram_2)
+    pc1Int(p.dram_2), pseudoChannelBit(p.pseudo_channel_bit)
 {
     DPRINTF(MemCtrl, "Setting up HBM controller\n");
 
@@ -225,8 +225,7 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
     // What type of media does this packet access?
     bool is_pc0;
 
-    // TODO: make the interleaving bit across pseudo channels a parameter
-    if (bits(pkt->getAddr(), 6) == 0) {
+    if (bits(pkt->getAddr(), pseudoChannelBit) == 0) {
         is_pc0 = true;
     } else {
         is_pc0 = false;

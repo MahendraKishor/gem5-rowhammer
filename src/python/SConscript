@@ -290,6 +290,8 @@ PySource('gem5.resources.client_api',
 PySource('gem5.resources.client_api',
          'gem5/resources/client_api/atlasclient.py')
 PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/gem5apiclient.py')
+PySource('gem5.resources.client_api',
          'gem5/resources/client_api/client_wrapper.py')
 PySource('gem5.resources.client_api',
          'gem5/resources/client_api/abstract_client.py')

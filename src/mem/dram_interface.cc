@@ -41,6 +41,7 @@
 
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
+#include "base/output.hh"
 #include "base/trace.hh"
 
 #include "debug/DRAM.hh"
@@ -222,7 +223,7 @@ DRAMInterface::checkRowHammer(Bank& bank_ref, MemPacket* mem_pkt)
                 prob *= another_distribution(generator);
             }
 
-            // shall we make 
+            // shall we make
             if (prob == 1)
                 bitflip = true;
 
@@ -337,7 +338,7 @@ DRAMInterface::checkRowHammer(Bank& bank_ref, MemPacket* mem_pkt)
                         "HD Bitflip at bank %d, row %d, col %d\n",
                         bank_ref.bank, mem_pkt->row + 2,
                         col);
-                
+
                 if (enableMemoryCorruption)
                     doMemoryCorruption(mem_pkt, bank_ref.bank,
                                                     mem_pkt->row + 2, col, 2);
@@ -386,10 +387,10 @@ DRAMInterface::checkRowHammer(Bank& bank_ref, MemPacket* mem_pkt)
                 // mix this distribution with another distribution to
                 // slow the bitflips as traffic generators do not capture
                 // the real life equivalent
-                prob *= ((another_distribution(generator) * 
+                prob *= ((another_distribution(generator) *
                                         another_distribution(generator)));
                 // mkae sure that modulo is also zero
-                if ((bank_ref.rhTriggers[mem_pkt->row][1] % 
+                if ((bank_ref.rhTriggers[mem_pkt->row][1] %
                                             rowhammerThreshold) != 0)
                     prob = 0;
             }
@@ -629,8 +630,7 @@ DRAMInterface::checkRowHammer(Bank& bank_ref, MemPacket* mem_pkt)
                     outfile.close();
                 }
                 DPRINTF(RhBitflip,
-                    "Bitflip at bank %d, row %d, col %d, single-sided \
-                    %d\n",
+                    "Bitflip at bank %d, row %d, col %d, single-sided %d\n",
                     bank_ref.bank, mem_pkt->row + 1, col,
                     single_sided);
                 if (enableMemoryCorruption)
@@ -681,7 +681,7 @@ DRAMInterface::doMemoryCorruption(MemPacket* mem_pkt, uint8_t bank,
     // assert that the row is calculated correctly. it needs to be correctly
     // implemented
 
-    
+
     // Back to system physical address.
     Addr addr = range.start() + next_ctrl;
 
@@ -693,7 +693,7 @@ DRAMInterface::doMemoryCorruption(MemPacket* mem_pkt, uint8_t bank,
     // aggressor +- distance. This is a sanity check for modeling the right
     // bit flip for data corruption.
     fatal_if(new_row != (mem_pkt->row + distance), "The victim row %d from"
-                                            " the recomputed address is" 
+                                            " the recomputed address is"
                                             " not the same as expected"
                                             " row %d\n", new_row, victim_row);
 
@@ -704,7 +704,7 @@ DRAMInterface::doMemoryCorruption(MemPacket* mem_pkt, uint8_t bank,
 
     // // make sure that you understand this correctly.
     // // row = addr % rowsPerBank; The victim row depends up on the distance.
-    // uint32_t victim_row = (mem_pkt->addr % rowsPerBank) + distance; 
+    // uint32_t victim_row = (mem_pkt->addr % rowsPerBank) + distance;
 
 
     // assert(row_mask == row_size);
@@ -714,18 +714,18 @@ DRAMInterface::doMemoryCorruption(MemPacket* mem_pkt, uint8_t bank,
 
     assert(host_addr);
     // So, each bank has it's own row. We will corrupt a bit in the same bank
-    // but at a different row. The row needs to be 
+    // but at a different row. The row needs to be
     // size_t row_size = banksPerRank * rowBufferSize; // 8 * 1024;
 
     // There has to be 65536 capacitors per row.
     // This gives 8192 columns per row.
     // The row buffer size is 1 KiB for 8x8
-    // This means that there are 8192 columns 
+    // This means that there are 8192 columns
 
     // read row_size from host addr
     uint8_t *dest = new uint8_t[row_size];
     std::memcpy(dest, host_addr, row_size);
-    
+
     // if the user wants to enable ECC, we need to keep a track of the original
     // data to that the ECC bits can be calculated
     if (enableEcc) {
@@ -747,7 +747,7 @@ DRAMInterface::doMemoryCorruption(MemPacket* mem_pkt, uint8_t bank,
     // per column in 8x8 dimm
     uint64_t corrupt_bit = hd_distribution(generator) % 8;
     dest[col] ^= (1 << corrupt_bit);
-    
+
     // increment the stat to make sure that the right bit has flipped
     stats.rowHammerCorruptedBitCount++;
 
@@ -1378,7 +1378,7 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
         }
         case 6: {
             // This is a reimplementation of Vendor B's TRR with a simpler
-            // logic. 
+            // logic.
             // In out hardware experiments, we saw a particular row was always
             // a victim row when sandwiched between 7291 and 7293 across 10
             // different DIMMs.
@@ -1389,7 +1389,7 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
             // are always not selected by TRR, allowing replay attacks to be
             // successful.
 
-            // For the paper, we explicitly mask 7291 and 7293 so that these 
+            // For the paper, we explicitly mask 7291 and 7293 so that these
             // rows are selected across multiple different DIMMs with different
             // device maps and then compare the JS Divergence of the hardware
             // and simulated maps.
@@ -1472,12 +1472,11 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
             // PARA does not have a sampler/counting mechanism. it just issues
             // rowhammer refreshes with a probability of P.
 
-            struct timeval time;
-            gettimeofday(&time,NULL);
-
-            srand((time.tv_sec * 1000) + (time.tv_usec / 1000));
-
-            uint64_t prob = rand() % 10000 + 1;
+            // Reseeding srand() from the wall clock on every activation would
+            // hand out the same draw for a whole host millisecond, which
+            // turns the per-activation probability into a per-millisecond one
+            // and lets a row be hammered unchecked in between.
+            double prob = para_distribution(generator);
 
             // the inhibitor cannot be installed here. however, explicit
             // refreshing can only be done here.
@@ -1485,80 +1484,68 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
             // violates timing parameters.
 
             bool inhibitor_status = false;
-            if (prob <= 100) {
+            if (prob < paraProbability) {
                 inhibitor_status = true;
                 // PARA is too simple where this means that the sampler is
                 // triggered
                 stats.rowHammerSamplerTriggers++;
             }
 
-            int num_neighbor_rows = 1;
-
-            // if inhibitor is true, then we just issue refreshes to the
+            // if inhibitor is true, then we issue a refresh to one of the
             // neighboring rows of the currently activated row.
 
+            // rhTriggers[a][k] counts the hammers that aggressor row a has
+            // inflicted on the row at offset -2, -1, +1 and +2 for k = 0, 1,
+            // 2 and 3 respectively. A victim is therefore tracked by the
+            // counters of the rows that hammer it, so refreshing victim v
+            // clears rhTriggers[v + 2][0], rhTriggers[v + 1][1],
+            // rhTriggers[v - 1][2] and rhTriggers[v - 2][3]. Clearing the
+            // counters indexed by v itself would leave the counters that
+            // actually gate a bitflip on v untouched.
+            const int64_t aggressor_offset[4] = {2, 1, -1, -2};
+
             if (inhibitor_status) {
+                // Y. Kim et al. refresh only one of the two adjacent rows,
+                // picked with equal probability, so a given neighbour is
+                // refreshed with p/2. A row at either edge of the bank has
+                // one of its two sides missing and loses that draw, which
+                // keeps every existing neighbour at exactly p/2.
+                int64_t side = para_distribution(generator) < 0.5 ? -1 : 1;
+                int64_t victim = (int64_t)row + side;
 
-                for (int i = 0 ; i < num_neighbor_rows; i++) {
+                if (victim >= 0 && victim < (int64_t)rowsPerBank) {
+                    for (int k = 0; k < 4; k++) {
+                        int64_t aggressor = victim + aggressor_offset[k];
+                        if (aggressor >= 0 &&
+                                aggressor < (int64_t)rowsPerBank)
+                            bank_ref.rhTriggers[aggressor][k] = 0;
+                    }
+
+                    para_refreshes++;
                     stats.rowHammerInhibitorTriggers++;
-                    DPRINTF(RhInhibitor, "Inhibitor triggered "
-                            "refresh in rank %d, bank %d, row %d, "
-                            "counter value %d, %d, %d, %d, \t"
+
+                    if (rhStatDump) {
+                        std::ofstream outfile;
+                        outfile.open(rhStatFile,
+                                std::ios::out | std::ios::app);
+
+                        outfile << "PARA refresh at bank "
+                                << (int)bank_ref.bank << " act row " << row
+                                << " victim row " << victim << std::endl;
+
+                        outfile.close();
+                    }
+
+                    DPRINTF(RhInhibitor, "Inhibitor triggered refresh in "
+                            "rank %d, bank %d, row %d, victim row %ld, "
+                            "counter value %ld, %ld, \t"
                             "Issued PARA refreshes %lld\n",
                             rank_ref.rank,
                             bank_ref.bank,
                             row,
-                            bank_ref.rhTriggers[row - 1][2],
-                            bank_ref.rhTriggers[row - 2][3],
-                            bank_ref.rhTriggers[row + 1][1],
-                            bank_ref.rhTriggers[row + 2][0],
-                            para_refreshes + 2
-                    );
-                    para_refreshes += 2;
-                    int local_count = 2;
-                    if (row > 1 && row < (rowsPerBank - 2)) {
-                        bank_ref.rhTriggers[row - i - 1][2] = 0;
-                        bank_ref.rhTriggers[row - i - 2][3] = 0;
-                        bank_ref.rhTriggers[row - i + 1][1] = 0;
-                        bank_ref.rhTriggers[row - i + 2][0] = 0;
-                    }
-                    else if (row == 1) {
-                        bank_ref.rhTriggers[row - i - 1][2] = 0;
-                        bank_ref.rhTriggers[row - i + 1][1] = 0;
-                        bank_ref.rhTriggers[row - i + 2][0] = 0;
-                    }
-                    else if (row == 0) {
-                        bank_ref.rhTriggers[row - i + 1][1] = 0;
-                        bank_ref.rhTriggers[row - i + 2][0] = 0;
-                        local_count = 1;
-                    }
-                    else if (row == rowsPerBank - 2) {
-                        bank_ref.rhTriggers[row - i - 1][2] = 0;
-                        bank_ref.rhTriggers[row - i - 2][3] = 0;
-                        bank_ref.rhTriggers[row - i + 1][1] = 0;
-                    }
-                    else if (row == rowsPerBank - 1) {
-                        bank_ref.rhTriggers[row - i - 1][2] = 0;
-                        bank_ref.rhTriggers[row - i - 2][3] = 0;
-                        local_count = 1;
-                    }
-                    else {
-                        fatal("Unexpected row condition encountered!");
-                    }
-
-                    para_refreshes += local_count;
-                    stats.rowHammerInhibitorTriggers++;
-                    DPRINTF(RhInhibitor, "Inhibitor triggered "
-                            "refresh in rank %d, bank %d, row %d, "
-                            "counter value %d, %d, %d, %d, \t"
-                            "Issued PARA refreshes %lld\n",
-                            rank_ref.rank,
-                            bank_ref.bank,
-                            row,
-                            bank_ref.rhTriggers[row - 1][2],
-                            bank_ref.rhTriggers[row - 2][3],
-                            bank_ref.rhTriggers[row + 1][1],
-                            bank_ref.rhTriggers[row + 2][0],
+                            victim,
+                            bank_ref.rhTriggers[row][1],
+                            bank_ref.rhTriggers[row][2],
                             para_refreshes
                     );
                 }
@@ -1811,7 +1798,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                 const Addr ctrl_off  = getCtrlAddr(mem_pkt->addr);
 
                 // One DRAM row/page in bytes for this interface.
-                const Addr row_bytes = 
+                const Addr row_bytes =
                                 banksPerRank * burstsPerRowBuffer * burstSize;
 
                 // Move to row+1 while keeping column offset as-is (same
@@ -1822,7 +1809,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                 // places, add an assert that the row is calculated correctly.
                 // it needs to be correctly implemented
                 Addr addr = range.start() + next_ctrl;
-                
+
                 // Back to system physical address.
                 // Addr addr = range.start() + next_ctrl;
                 if (auto search = ecc_victims.find(addr);
@@ -1843,13 +1830,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                 uint16_t start_col = ecc_columns[addr] / 8;
                                 // get a 8 byte aligned word
                                 uint8_t *original_row_data = ecc_victims[addr];
-                                
+
                                 // 8-byte chunk start
                                 const uint8_t* d =
                                                 original_row_data + start_col;
                                 uint8_t ecc = 0;
 
-                                
+
                                 // For each ECC bit (column j in P)
                                     for (std::size_t j = 0; j < 8; ++j) {
                                         uint8_t parity = 0;
@@ -1894,7 +1881,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                 // step 2: get the corrupted data data
                                 uint8_t *host_addr = toHostAddr(addr);
                                 assert(host_addr);
-                               
+
                                 uint64_t row_size = rowBufferSize;
                                 uint8_t *dest = new uint8_t[row_size];
                                 std::memcpy(dest, host_addr, row_size);
@@ -2221,10 +2208,11 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       companionTableLength(_p.companion_table_length),
       companionThreshold(_p.companion_threshold),
       rhStatDump(_p.rh_stat_dump),
-      rhStatFile(_p.rh_stat_file),
+      rhStatFile(simout.resolve(_p.rh_stat_file)),
       singleSidedProb(_p.single_sided_prob),
       halfDoubleProb(_p.half_double_prob),
       doubleSidedProb(_p.double_sided_prob),
+      paraProbability(_p.para_probability),
       enableMemoryCorruption(_p.enable_memory_corruption),
       syntheticTraffic(_p.synthetic_traffic),
       enableEcc(_p.enable_ecc),
@@ -2302,9 +2290,9 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
 
     std::ifstream f(deviceFile);
 
-    // if (!f) {
-    //     fatal("The given device map does not exists!\n");
-    // }
+    if (!f) {
+        fatal("The given device map does not exists!\n");
+    }
     device_map = nlohmann::json::parse(f);
 
     DPRINTF(RowHammer, "Initialized device map successfully!\n");
@@ -2329,7 +2317,7 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
             }
         }
         pm.close();
-        
+
         if (n != 8) {
             fatal("Error: pMatrix file had only A entries; need 8\n");
         }
@@ -2349,6 +2337,12 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
     another_distribution = std::uniform_int_distribution<uint64_t>(
                                     std::numeric_limits<std::uint64_t>::min(),
                                     std::numeric_limits<std::uint64_t>::max());
+    para_distribution = std::uniform_real_distribution<double>(0.0, 1.0);
+
+    fatal_if(trrVariant == 5 &&
+             (paraProbability <= 0.0 || paraProbability > 1.0),
+             "para_probability must be within (0, 1], got %f\n",
+             paraProbability);
 
 
     // some basic sanity checks
@@ -2941,6 +2935,27 @@ DRAMInterface::Rank::processWriteDoneEvent()
 }
 
 void
+DRAMInterface::Rank::dumpRhCounters()
+{
+    std::ofstream outfile;
+    outfile.open(dram.rhStatFile, std::ios::out | std::ios::app);
+    outfile << "# dumping counters before refresh!" << std::endl;
+    int bank_count = 0;
+    for (auto &b: banks) {
+        outfile << "bank: " << bank_count << std::endl;
+        for (auto& it: b.activated_row_list) {
+            outfile << "\t" << it << "\t";
+            for (int i = 0; i < 4; i++)
+                outfile << b.rhTriggers[it][i] << " ";
+            outfile << std::endl;
+        }
+        bank_count++;
+    }
+
+    outfile.close();
+}
+
+void
 DRAMInterface::Rank::processRefreshEvent()
 {
     // when first preparing the refresh, remember when it was due
@@ -3431,28 +3446,8 @@ DRAMInterface::Rank::processRefreshEvent()
 
             switch(dram.trrVariant) {
                 case 0:
-                    if (dram.rhStatDump) {
-                        if (dram.refreshCounter % 8192 == 0) {
-                            std::ofstream outfile;
-                            outfile.open(dram.rhStatFile,
-                                    std::ios::out | std::ios::app );
-                            outfile << "# dumping counters before refresh!" <<
-                                    std::endl;
-                            int bank_count = 0;
-                            for (auto &b: banks) {
-                                outfile << "bank: " << bank_count << std::endl;
-                                for (auto& it: b.activated_row_list) {
-                                    outfile << "\t" << it << "\t";
-                                    for (int i = 0; i < 4; i++)
-                                        outfile << b.rhTriggers[it][i] << " ";
-                                    outfile << std::endl;
-                                }
-                                bank_count++;
-                            }
-
-                            outfile.close();
-                        }
-                    }
+                    if (dram.rhStatDump && dram.refreshCounter % 8192 == 0)
+                        dumpRhCounters();
                     // now reset the counters
                     if (dram.refreshCounter % 8192 == 0) {
                         for (auto &b: banks) {
@@ -3496,6 +3491,12 @@ DRAMInterface::Rank::processRefreshEvent()
                     // there must be no cross variable initialziations.
                     if (dram.refreshCounter % 8192 == 0) {
                         DPRINTF(RhInhibitor, "All rows refreshed!\n");
+
+                        // PARA keeps no sampler state of its own, so the
+                        // per-row counters are the only record of what the
+                        // window saw. Dump them before they are cleared.
+                        if (dram.trrVariant == 5 && dram.rhStatDump)
+                            dumpRhCounters();
 
                         for (auto &b : banks) {
                             for (int i = 0 ; i < dram.counterTableLength; i++)
@@ -3983,7 +3984,28 @@ DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
              "Data bus utilization in percentage for writes"),
 
     ADD_STAT(pageHitRate, statistics::units::Ratio::get(),
-             "Row buffer hit rate, read and write combined")
+             "Row buffer hit rate, read and write combined"),
+
+    ADD_STAT(rowHammerTotalBitflips, statistics::units::Count::get(),
+             "Total number of rowhammer induced bitflips"),
+    ADD_STAT(rowHammerSingleSidedBitflips, statistics::units::Count::get(),
+             "Number of bitflips caused by a single sided attack"),
+    ADD_STAT(rowHammerDoubleSidedBitflips, statistics::units::Count::get(),
+             "Number of bitflips caused by a double sided attack"),
+    ADD_STAT(rowHammerHalfDoubleBitflips, statistics::units::Count::get(),
+             "Number of bitflips caused by a half-double attack"),
+
+    ADD_STAT(rowHammerCorruptedBitCount, statistics::units::Count::get(),
+             "Number of bits corrupted in the backing store"),
+    ADD_STAT(rowHammerEccCorrected, statistics::units::Count::get(),
+             "Number of bitflips corrected by ECC"),
+    ADD_STAT(rowHammerEccDetected, statistics::units::Count::get(),
+             "Number of bitflips detected but not corrected by ECC"),
+
+    ADD_STAT(rowHammerSamplerTriggers, statistics::units::Count::get(),
+             "Number of times the mitigation sampler was triggered"),
+    ADD_STAT(rowHammerInhibitorTriggers, statistics::units::Count::get(),
+             "Number of mitigation induced refreshes issued")
 
 {
 }

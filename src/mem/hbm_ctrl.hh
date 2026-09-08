@@ -195,6 +195,11 @@ class HBMCtrl : public MemCtrl
     DRAMInterface* pc1Int;
 
     /**
+     * Address bit used to select between the two pseudo channels
+     */
+    const unsigned pseudoChannelBit;
+
+    /**
      * This indicates if the R/W queues will be partitioned among
      * pseudo channels
      */

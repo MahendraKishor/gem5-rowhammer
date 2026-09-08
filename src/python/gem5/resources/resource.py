@@ -984,9 +984,9 @@ def obtain_resource(
         if "additional_params" in resource_json:
             for key in resource_json["additional_params"].keys():
                 assert isinstance(key, str)
-                value = resource_json["additional_params"][key]
-                assert isinstance(value, str)
-                params[key] = value
+                # A parameter's value need not be a string. The workload's
+                # "arguments", for example, is a list.
+                params[key] = resource_json["additional_params"][key]
         resource_json["parameters"] = params
     # Once we know what AbstractResource subclass we are using, we create it.
     # The fields in the JSON object are assumed to map like-for-like to the

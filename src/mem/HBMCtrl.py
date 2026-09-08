@@ -42,6 +42,14 @@ class HBMCtrl(MemCtrl):
     # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
     dram_2 = Param.DRAMInterface("DRAM memory interface")
 
+    # Address bit that selects the pseudo channel. With the default
+    # HBM2 interleaving this is bit 6 (i.e. consecutive 64B lines
+    # alternate between the two pseudo channels), but a device level
+    # address mapping may move the channel select elsewhere.
+    pseudo_channel_bit = Param.Unsigned(
+        6, "Address bit used to select the pseudo channel"
+    )
+
     # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
     # gives the best results with following min_r/w_per_switch
     min_reads_per_switch = 64

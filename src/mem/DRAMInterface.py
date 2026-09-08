@@ -116,8 +116,10 @@ class DRAMInterface(MemInterface):
         "named as `rowhammer.trace`",
     )
 
+    # A relative path is resolved against gem5's output directory (--outdir),
+    # so the trace lands next to stats.txt. An absolute path is used as is.
     rh_stat_file = Param.String(
-        "m5out/rowhammer.trace", "output path of the rowhammer trace"
+        "rowhammer.trace", "output path of the rowhammer trace"
     )
 
     # Single-sided rowhammer probability.
@@ -143,27 +145,33 @@ class DRAMInterface(MemInterface):
         "one bit in the sandwiched row.",
     )
 
+    # PARA (trr_variant = 5) refreshes one of the two rows adjacent to an
+    # activated row with this probability, so a given neighbour is refreshed
+    # with half of it. Only used when trr_variant is 5.
+    para_probability = Param.Float(
+        0.01,
+        "Probability with which PARA refreshes "
+        "a neighbour of an activated row.",
+    )
+
     enable_memory_corruption = Param.Bool(
-        False,
-        "Set this to True enable memory corruption"
+        False, "Set this to True enable memory corruption"
     )
 
     # Traffic generators create too many bitflips once rhTriggers is reached
     synthetic_traffic = Param.Bool(
-        False,
-        "Set this to true when using traffic generator"
+        False, "Set this to true when using traffic generator"
     )
 
     # To enable ECC, the usr eneeds to specify a boolean
     enable_ecc = Param.Bool(
-        False,
-        "Set this to true to enable functional ECC for data correction"
+        False, "Set this to true to enable functional ECC for data correction"
     )
 
     # pMatrix
     p_matrix = Param.String(
         "NULL",
-        "Specify a path to the pMatrix required to compute the ECC bits"
+        "Specify a path to the pMatrix required to compute the ECC bits",
     )
 
     # ECC Algorithm. We want to have a string where the user specifies

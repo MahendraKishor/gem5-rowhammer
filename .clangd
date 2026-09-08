@@ -1,0 +1,21 @@
+CompileFlags:
+  Add:
+    - -std=c++17
+    - -xc++
+    - -DTRACING_ON=1
+    # Mirrors the CPPPATH set up in SConstruct/src/SConscript.
+    - -I/home/sudipto/Developer/gem5-rowhammer/src
+    - -I/home/sudipto/Developer/gem5-rowhammer/include
+    - -I/home/sudipto/Developer/gem5-rowhammer/ext
+    - -I/home/sudipto/Developer/gem5-rowhammer/ext/pybind11/include
+    - -I/home/sudipto/Developer/gem5-rowhammer/ext/drampower/src
+    - -I/home/sudipto/Developer/gem5-rowhammer/ext/json/json/include
+    # SCons-generated headers (params/*, enums/*, debug/*, config/*).
+    - -I/home/sudipto/Developer/gem5-rowhammer/build/X86
+    - -I/usr/include/python3.12
+
+Diagnostics:
+  # gem5 headers are included for readability/forward-compat, not just for
+  # symbols used in the same file; include-cleaner flags them as unused.
+  UnusedIncludes: None
+  MissingIncludes: None

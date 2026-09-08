@@ -33,3 +33,10 @@ configs/dram/lowp_sweep.cfg
 .pyenv
 .vscode
 typings
+
+# local clones / large artifacts — not published
+/gem5-resources/
+/ext/json/json/
+/util/hammersim/prob-005.json
+/res/
+store/tutorial/bench/mm

@@ -26,8 +26,8 @@
 
 """
 Run with
-./build/X86/gem5.opt --outdir=m5out/vendorB-row7292 --debug-flags=RhBitflip \
-	configs/dram/rowhammer/TrafficGen/vendor-B/within_rows/dimm0/row7292_2_aggressor_rows.py
+./build/X86/gem5.opt --outdir=m5out/vendorB-row7292_para --debug-flags=RhBitflip \
+	configs/dram/rowhammer/TrafficGen/vendor-B/within_rows/dimm0/row7292_2_aggressor_rows_para.py
 """
 
 from m5.objects import *
@@ -57,8 +57,10 @@ class DRAM_TEST(DDR4_2400_8x8):
         os.getcwd(), "util/hammersim/row_experiment_vendor_b/dimm0.bank-4.json"
     )
     ranks_per_channel = 1
-    # TRR is already bypassed to study vulnerable rows.
-    trr_variant = 0
+    # PARA (Y. Kim et al.). PARA has no sampler, so trr_threshold,
+    # counter_table_length and companion_table_length are unused here.
+    trr_variant = 5
+    para_probability = 0.01
     trr_threshold = 16834
     rowhammer_threshold = 45000
     counter_table_length = 6

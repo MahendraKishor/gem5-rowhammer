@@ -470,6 +470,13 @@ class DRAMInterface : public MemInterface
         void processPrechargeEvent();
         EventFunctionWrapper prechargeEvent;
 
+        /**
+         * Append the per-row hammer counters of every bank in this rank to
+         * the rowhammer trace. Called just before a refresh window clears
+         * them, so the trace keeps the counts the window accumulated.
+         */
+        void dumpRhCounters();
+
         void processRefreshEvent();
         EventFunctionWrapper refreshEvent;
 
@@ -563,6 +570,7 @@ class DRAMInterface : public MemInterface
     const uint64_t singleSidedProb;
     const uint64_t halfDoubleProb;
     const uint64_t doubleSidedProb;
+    const double paraProbability;
 
     const bool enableMemoryCorruption;
 
@@ -587,6 +595,8 @@ class DRAMInterface : public MemInterface
     std::uniform_int_distribution<uint64_t> single_sided_distribution;
     std::uniform_int_distribution<uint64_t> double_sided_distribution;
     std::uniform_int_distribution<uint64_t> another_distribution;
+    // PARA compares a draw from [0, 1) against paraProbability.
+    std::uniform_real_distribution<double> para_distribution;
 
 
     // // std::random_device rd;
@@ -738,7 +748,7 @@ class DRAMInterface : public MemInterface
         // is counted as a samplertrigger
         statistics::Scalar rowHammerSamplerTriggers;
         statistics::Scalar rowHammerInhibitorTriggers;
-        
+
     };
 
     DRAMStats stats;

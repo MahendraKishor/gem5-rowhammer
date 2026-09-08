@@ -24,14 +24,29 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-config = {
-    "sources": {
-        "gem5-resources": {
-            "dataSource": "gem5-vision",
-            "database": "gem5-vision",
-            "collection": "resources",
-            "url": "https://api.gem5.org/api/resources",
-            "isMongo": True,
-        }
-    }
-}
+from m5.params import *
+from m5.proxy import *
+from m5.objects.MemCtrl import *
+
+
+class DCacheCtrl(MemCtrl):
+    type = "DCacheCtrl"
+    cxx_header = "mem/dram_cache_ctrl.hh"
+    cxx_class = "gem5::memory::DCacheCtrl"
+
+    req_port = RequestPort(
+        "This port responds to DRAM cache controller "
+        "requests for backing memory"
+    )
+
+    dram_cache_size = Param.MemorySize(
+        "128MiB", "DRAM cache block size in bytes"
+    )
+    block_size = Param.Unsigned(64, "DRAM cache block size in bytes")
+    addr_size = Param.Unsigned(
+        64, "Addr size of the request from outside world"
+    )
+    orb_max_size = Param.Unsigned(256, "Outstanding Requests Buffer size")
+    crb_max_size = Param.Unsigned(32, "Conflicting Requests Buffer size")
+    always_hit = Param.Bool(True, "")
+    always_dirty = Param.Bool(True, "")
